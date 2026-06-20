@@ -25,8 +25,8 @@ type ChatAreaProps = {
   onSend: (text: string) => void
   onNewChat: () => void
   onOpenSidebar: () => void
-  // Open the PDF panel to a cited page, highlighting the cited passage text.
-  onCitationClick: (page: number, highlights: string[]) => void
+  // Open the PDF panel to a cited page.
+  onCitationClick: (page: number) => void
 }
 
 export function ChatArea({
@@ -228,7 +228,7 @@ const MessageBubble = memo(function MessageBubble({
 }: {
   message: ChatMessage
   streaming: boolean
-  onCitationClick: (page: number, highlights: string[]) => void
+  onCitationClick: (page: number) => void
 }) {
   if (message.role === "user") {
     return (
@@ -245,17 +245,14 @@ const MessageBubble = memo(function MessageBubble({
     return streaming ? <ThinkingBubble /> : null
   }
 
-  // Inline citation: opens the PDF to the cited page, highlighting that page's
-  // source passages. Rendered in place where `[p. N]` appears in the prose.
+  // Inline citation: opens the PDF to the cited page. Rendered in place where
+  // `[p. N]` appears in the prose.
   const renderCitation = (page: number, key: string) => {
-    const highlights = (message.sources ?? [])
-      .filter((s) => s.page === page)
-      .map((s) => s.content)
     return (
       <button
         key={key}
         type="button"
-        onClick={() => onCitationClick(page, highlights)}
+        onClick={() => onCitationClick(page)}
         title={`Open page ${page} of the source PDF`}
         className="mx-0.5 cursor-pointer rounded-md bg-accent/10 px-1.5 py-0.5 align-baseline font-mono text-xs font-medium text-accent transition-colors hover:bg-accent/20"
       >

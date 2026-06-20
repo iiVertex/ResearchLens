@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { Document, Page, pdfjs } from "react-pdf"
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react"
 import "react-pdf/dist/esm/Page/TextLayer.css"
@@ -17,22 +17,15 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 type Props = {
   docId: string
   docName: string
-  // The cited page to scroll to and highlight.
+  // The cited page to scroll to.
   page: number
-  // Source passage text(s) for the cited page; their words get highlighted.
-  highlights: string[]
   onClose: () => void
 }
-
-const EMPTY: string[] = []
-const collapse = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase()
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
 // A single rendered page. Memoized so scrolling (which re-renders the parent)
 // does NOT re-render every page's text layer — that re-render churn is what
 // triggers react-pdf's "TextLayer task cancelled" warnings. A page only
-// re-renders when its own width / highlights change.
+// re-renders when its own width / active state change.
 // Typical paper page aspect ratio (US Letter). Used to reserve height for pages
 // that haven't been mounted yet, so the scroll position stays stable.
 const PAGE_ASPECT = 11 / 8.5
@@ -40,40 +33,23 @@ const PAGE_ASPECT = 11 / 8.5
 const PageItem = memo(function PageItem({
   pageNumber,
   width,
-  highlights,
   active,
   onRendered,
 }: {
   pageNumber: number
   width: number
-  highlights: string[] // non-empty only for the cited page
   // When false, render a same-size placeholder instead of the real (expensive)
   // canvas + text layer. Pages mount lazily as they scroll into view, so opening
   // a 20-page PDF doesn't render all 20 pages synchronously and block the UI.
   active: boolean
   onRendered: (page: number) => void
 }) {
-  // Highlight passage words; undefined → react-pdf's default text rendering.
-  const textRenderer = useMemo(() => {
-    if (highlights.length === 0) return undefined
-    const norm = highlights.map(collapse)
-    return ({ str }: { str: string }) => {
-      const html = escapeHtml(str)
-      const token = collapse(str)
-      if (token.length < 4) return html
-      return norm.some((h) => h.includes(token))
-        ? `<mark class="rl-highlight">${html}</mark>`
-        : html
-    }
-  }, [highlights])
-
   return (
     <div data-page={pageNumber}>
       {active ? (
         <Page
           pageNumber={pageNumber}
           width={width}
-          customTextRenderer={textRenderer}
           renderAnnotationLayer={false}
           onRenderSuccess={() => onRendered(pageNumber)}
           className="rl-page shadow-sm"
@@ -88,7 +64,7 @@ const PageItem = memo(function PageItem({
   )
 })
 
-export function PdfPanel({ docId, docName, page, highlights, onClose }: Props) {
+export function PdfPanel({ docId, docName, page, onClose }: Props) {
   const [url, setUrl] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [numPages, setNumPages] = useState<number | null>(null)
@@ -292,7 +268,6 @@ export function PdfPanel({ docId, docName, page, highlights, onClose }: Props) {
                 key={p}
                 pageNumber={p}
                 width={width}
-                highlights={p === page ? highlights : EMPTY}
                 active={activePages.has(p)}
                 onRendered={maybeScroll}
               />

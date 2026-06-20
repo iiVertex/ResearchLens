@@ -171,15 +171,7 @@
   animation: rl-float 6s ease-in-out infinite;
 }
 
-/* PDF citation panel (react-pdf): highlight cited passage words in the text
-   layer. Text-layer spans are transparent over the canvas glyphs, so the mark
-   must keep text transparent and only tint the background. */
-.react-pdf__Page__textContent mark.rl-highlight {
-  background-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  color: transparent;
-  border-radius: 2px;
-  padding: 0;
-}
+/* PDF citation panel (react-pdf). */
 .rl-page canvas {
   border-radius: 4px;
 }

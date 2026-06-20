@@ -29,7 +29,6 @@ type PdfState = {
   docId: string
   docName: string
   page: number
-  highlights: string[]
 }
 
 const PDF_MIN_WIDTH = 360
@@ -64,9 +63,9 @@ export function DashboardClient({ userEmail, initialDocuments }: Props) {
   const activeDoc = documents.find((d) => d.id === activeDocId) ?? null
 
   const openCitation = useCallback(
-    (page: number, highlights: string[]) => {
+    (page: number) => {
       if (!activeDoc) return
-      setPdf({ docId: activeDoc.id, docName: activeDoc.name, page, highlights })
+      setPdf({ docId: activeDoc.id, docName: activeDoc.name, page })
     },
     [activeDoc],
   )
@@ -212,7 +211,7 @@ export function DashboardClient({ userEmail, initialDocuments }: Props) {
       setIsStreaming(true)
 
       try {
-        const { conversationId, sources } = await streamChat(
+        const { conversationId } = await streamChat(
           {
             documentId: activeDoc.id,
             conversationId: activeConversationId ?? undefined,
@@ -226,14 +225,6 @@ export function DashboardClient({ userEmail, initialDocuments }: Props) {
             )
           },
         )
-
-        // Attach the retrieved passages so citation clicks highlight the cited
-        // text in the PDF immediately for this freshly streamed answer.
-        if (sources.length) {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, sources } : m)),
-          )
-        }
 
         const isNewConversation = !activeConversationId
         if (isNewConversation && conversationId) {
@@ -329,7 +320,6 @@ export function DashboardClient({ userEmail, initialDocuments }: Props) {
               docId={pdf.docId}
               docName={pdf.docName}
               page={pdf.page}
-              highlights={pdf.highlights}
               onClose={() => setPdf(null)}
             />
           </aside>
