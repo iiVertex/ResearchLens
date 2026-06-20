@@ -7,6 +7,8 @@ import { Navbar } from "@/components/landing/navbar"
 import { Hero } from "@/components/landing/hero"
 import { Features } from "@/components/landing/features"
 import { HowItWorks } from "@/components/landing/how-it-works"
+import { UseCases } from "@/components/landing/use-cases"
+import { FAQ } from "@/components/landing/faq"
 import { CTA } from "@/components/landing/cta"
 import { Footer } from "@/components/landing/footer"
 
@@ -20,6 +22,7 @@ export default function LandingPage() {
       // Intro timeline: stagger navbar, headline, subheadline, buttons, mockup.
       const introTargets = [
         '[data-anim="navbar"]',
+        '[data-anim="badge"]',
         '[data-anim="headline"]',
         '[data-anim="subheadline"]',
         '[data-anim="cta"]',
@@ -66,6 +69,8 @@ export default function LandingPage() {
         <Hero />
         <Features />
         <HowItWorks />
+        <UseCases />
+        <FAQ />
         <CTA />
       </main>
       <Footer />
