@@ -10,7 +10,7 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { suggestedQuestions, type ChatMessage } from "@/lib/dashboard-data"
 import { RichText } from "@/components/dashboard/rich-text"
@@ -98,11 +98,14 @@ export function ChatArea({
             <EmptyState docName={activeDoc.name} onPick={onSend} />
           ) : (
             <div className="flex flex-col gap-6">
-              {messages.map((m) => (
+              {messages.map((m, i) => (
                 <MessageBubble
                   key={m.id}
                   message={m}
-                  streaming={isThinking}
+                  // Only the last message needs the live "thinking" flag; passing
+                  // a stable `false` to the rest lets memo skip re-rendering them
+                  // on every streamed token.
+                  streaming={isThinking && i === messages.length - 1}
                   onCitationClick={onCitationClick}
                 />
               ))}
@@ -216,7 +219,9 @@ function ErrorState({ message }: { message: string | null }) {
   )
 }
 
-function MessageBubble({
+// Memoized: during streaming only the last message's props change, so settled
+// messages (and their markdown parsing) don't re-render on every token.
+const MessageBubble = memo(function MessageBubble({
   message,
   streaming,
   onCitationClick,
@@ -266,7 +271,7 @@ function MessageBubble({
       </div>
     </div>
   )
-}
+})
 
 function ThinkingBubble() {
   return (

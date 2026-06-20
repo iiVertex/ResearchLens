@@ -33,15 +33,24 @@ const escapeHtml = (s: string) =>
 // does NOT re-render every page's text layer — that re-render churn is what
 // triggers react-pdf's "TextLayer task cancelled" warnings. A page only
 // re-renders when its own width / highlights change.
+// Typical paper page aspect ratio (US Letter). Used to reserve height for pages
+// that haven't been mounted yet, so the scroll position stays stable.
+const PAGE_ASPECT = 11 / 8.5
+
 const PageItem = memo(function PageItem({
   pageNumber,
   width,
   highlights,
+  active,
   onRendered,
 }: {
   pageNumber: number
   width: number
   highlights: string[] // non-empty only for the cited page
+  // When false, render a same-size placeholder instead of the real (expensive)
+  // canvas + text layer. Pages mount lazily as they scroll into view, so opening
+  // a 20-page PDF doesn't render all 20 pages synchronously and block the UI.
+  active: boolean
   onRendered: (page: number) => void
 }) {
   // Highlight passage words; undefined → react-pdf's default text rendering.
@@ -60,14 +69,21 @@ const PageItem = memo(function PageItem({
 
   return (
     <div data-page={pageNumber}>
-      <Page
-        pageNumber={pageNumber}
-        width={width}
-        customTextRenderer={textRenderer}
-        renderAnnotationLayer={false}
-        onRenderSuccess={() => onRendered(pageNumber)}
-        className="rl-page shadow-sm"
-      />
+      {active ? (
+        <Page
+          pageNumber={pageNumber}
+          width={width}
+          customTextRenderer={textRenderer}
+          renderAnnotationLayer={false}
+          onRenderSuccess={() => onRendered(pageNumber)}
+          className="rl-page shadow-sm"
+        />
+      ) : (
+        <div
+          className="rl-page bg-card shadow-sm"
+          style={{ width, height: Math.round(width * PAGE_ASPECT) }}
+        />
+      )}
     </div>
   )
 })
@@ -77,6 +93,11 @@ export function PdfPanel({ docId, docName, page, highlights, onClose }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [numPages, setNumPages] = useState<number | null>(null)
   const [current, setCurrent] = useState(page)
+  // Pages that have been mounted (rendered for real). Grows as pages scroll near
+  // the viewport; pages stay mounted once shown so re-scrolling is instant.
+  const [activePages, setActivePages] = useState<Set<number>>(
+    () => new Set([page, page - 1, page + 1]),
+  )
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -134,12 +155,49 @@ export function PdfPanel({ docId, docName, page, highlights, onClose }: Props) {
     [scrollToPage],
   )
 
-  // When the cited page changes (new citation clicked), queue a scroll to it.
+  // When the cited page changes (new citation clicked), queue a scroll to it and
+  // make sure it (and its neighbors) are mounted so there's something to land on.
   useEffect(() => {
     pendingScrollRef.current = page
     setCurrent(page)
+    setActivePages((prev) => {
+      const next = new Set(prev)
+      next.add(page - 1)
+      next.add(page)
+      next.add(page + 1)
+      return next
+    })
     if (numPages) requestAnimationFrame(() => maybeScroll(page))
   }, [page, docId, numPages, maybeScroll])
+
+  // Mount pages lazily as they approach the viewport. A generous rootMargin
+  // pre-renders just ahead of the scroll so pages are ready by the time they're
+  // visible, without rendering all pages up front (which blocks the main thread).
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !numPages) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const newly: number[] = []
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            newly.push(Number((e.target as HTMLElement).dataset.page))
+          }
+        }
+        if (newly.length) {
+          setActivePages((prev) => {
+            if (newly.every((p) => prev.has(p))) return prev
+            const next = new Set(prev)
+            for (const p of newly) next.add(p)
+            return next
+          })
+        }
+      },
+      { root: container, rootMargin: "800px 0px" },
+    )
+    container.querySelectorAll("[data-page]").forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [numPages])
 
   // Keep the "X / N" indicator in sync with the most-visible page while scrolling.
   useEffect(() => {
@@ -235,6 +293,7 @@ export function PdfPanel({ docId, docName, page, highlights, onClose }: Props) {
                 pageNumber={p}
                 width={width}
                 highlights={p === page ? highlights : EMPTY}
+                active={activePages.has(p)}
                 onRendered={maybeScroll}
               />
             ))}

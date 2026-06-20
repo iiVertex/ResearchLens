@@ -13,10 +13,11 @@ export type ParsedPdf = {
 }
 
 // Character-based sizes (the splitter counts characters, not tokens).
-// ~3000 chars ≈ ~750 tokens — a comfortable chunk for retrieval, with overlap
-// so a claim split across a boundary still lands wholly inside some chunk.
-const CHUNK_SIZE = 3000
-const CHUNK_OVERLAP = 300
+// ~900 chars ≈ a paragraph. Kept deliberately small so a cited passage maps to
+// a paragraph-sized region of the page (not the whole page) when highlighted in
+// the PDF viewer, while overlap keeps a claim split across a boundary intact.
+const CHUNK_SIZE = 900
+const CHUNK_OVERLAP = 150
 
 // Parse a PDF buffer into page-aware chunks. We extract text per page (so every
 // chunk keeps its source page for citations), then split each page's text.
