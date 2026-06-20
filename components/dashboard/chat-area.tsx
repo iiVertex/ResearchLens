@@ -12,8 +12,8 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { extractCitations, stripCitations } from "@/lib/citations"
 import { suggestedQuestions, type ChatMessage } from "@/lib/dashboard-data"
+import { RichText } from "@/components/dashboard/rich-text"
 import type { DocumentItem } from "@/lib/api"
 
 type ChatAreaProps = {
@@ -240,33 +240,29 @@ function MessageBubble({
     return streaming ? <ThinkingBubble /> : null
   }
 
-  const text = stripCitations(message.content)
-  const citations = extractCitations(message.content)
+  // Inline citation: opens the PDF to the cited page, highlighting that page's
+  // source passages. Rendered in place where `[p. N]` appears in the prose.
+  const renderCitation = (page: number, key: string) => {
+    const highlights = (message.sources ?? [])
+      .filter((s) => s.page === page)
+      .map((s) => s.content)
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => onCitationClick(page, highlights)}
+        title={`Open page ${page} of the source PDF`}
+        className="mx-0.5 cursor-pointer rounded-md bg-accent/10 px-1.5 py-0.5 align-baseline font-mono text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+      >
+        [p. {page}]
+      </button>
+    )
+  }
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[88%] rounded-xl rounded-bl-sm bg-secondary px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-        {text}
-        {citations.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {citations.map((c) => {
-              const highlights = (message.sources ?? [])
-                .filter((s) => s.page === c.page)
-                .map((s) => s.content)
-              return (
-                <button
-                  key={c.page}
-                  type="button"
-                  onClick={() => onCitationClick(c.page, highlights)}
-                  title={`Open page ${c.page} of the source PDF`}
-                  className="cursor-pointer rounded-md bg-accent/10 px-2 py-0.5 font-mono text-xs font-medium text-accent transition-colors hover:bg-accent/20"
-                >
-                  [p. {c.page}]
-                </button>
-              )
-            })}
-          </div>
-        )}
+      <div className="max-w-[88%] rounded-xl rounded-bl-sm bg-secondary px-4 py-3 text-sm leading-relaxed text-foreground">
+        <RichText text={message.content} renderCitation={renderCitation} />
       </div>
     </div>
   )

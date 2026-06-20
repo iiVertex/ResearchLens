@@ -4,7 +4,7 @@ import { getUser } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { streamAnswer } from "@/lib/ai"
 import { retrieve, buildPrompt } from "@/lib/rag"
-import { extractCitations } from "@/lib/citations"
+import { extractCitations, SOURCES_SENTINEL } from "@/lib/citations"
 
 const bodySchema = z.object({
   documentId: z.string().uuid(),
@@ -97,6 +97,17 @@ export async function POST(request: Request) {
       } catch {
         // Stream interrupted — persist whatever we have so far.
       } finally {
+        // Append the source passages after a NUL sentinel so the client can
+        // attach them to the just-streamed message and highlight cited text in
+        // the PDF immediately (without waiting for a reload). NUL never appears
+        // in model output, so it can't collide with the answer text.
+        try {
+          controller.enqueue(
+            encoder.encode(SOURCES_SENTINEL + JSON.stringify({ sources })),
+          )
+        } catch {
+          // controller already closed — ignore
+        }
         controller.close()
         // Persist the assistant's answer + parsed citations + the source passages
         // (so the UI can open the PDF and highlight the cited text) after the response.

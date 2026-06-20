@@ -212,7 +212,7 @@ export function DashboardClient({ userEmail, initialDocuments }: Props) {
       setIsStreaming(true)
 
       try {
-        const { conversationId } = await streamChat(
+        const { conversationId, sources } = await streamChat(
           {
             documentId: activeDoc.id,
             conversationId: activeConversationId ?? undefined,
@@ -226,6 +226,14 @@ export function DashboardClient({ userEmail, initialDocuments }: Props) {
             )
           },
         )
+
+        // Attach the retrieved passages so citation clicks highlight the cited
+        // text in the PDF immediately for this freshly streamed answer.
+        if (sources.length) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, sources } : m)),
+          )
+        }
 
         const isNewConversation = !activeConversationId
         if (isNewConversation && conversationId) {

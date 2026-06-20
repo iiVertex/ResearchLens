@@ -7,6 +7,11 @@ export type Citation = { page: number }
 // open the PDF to a citation's page and highlight the passage text on that page.
 export type Source = { page: number; chunk_index: number; content: string }
 
+// Marks the boundary in the chat stream between the answer text and a trailing
+// JSON metadata blob (the retrieved source passages). A NUL byte never appears
+// in model output, so it can't collide with the answer.
+export const SOURCES_SENTINEL = String.fromCharCode(0)
+
 const CITATION_RE = /\[p\.\s*(\d+)\]/gi
 
 // Distinct cited pages in order of first appearance.

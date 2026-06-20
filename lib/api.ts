@@ -1,7 +1,7 @@
 // Client-side fetch helpers for the dashboard. Thin typed wrappers over the
 // /api routes. Keep UI components free of fetch boilerplate.
 
-import type { Citation, Source } from "@/lib/citations"
+import { SOURCES_SENTINEL, type Citation, type Source } from "@/lib/citations"
 
 export type { Source }
 
@@ -84,11 +84,13 @@ export async function getConversation(
 }
 
 // Stream an answer. Calls onToken for each delta; resolves with the conversation
-// id (new or existing) and the full answer text once the stream ends.
+// id, the full answer text, and the retrieved source passages (sent after a NUL
+// sentinel at the end of the stream) so the UI can highlight cited text right
+// away — without waiting for a reload.
 export async function streamChat(
   args: { documentId: string; conversationId?: string; question: string },
   onToken: (delta: string) => void,
-): Promise<{ conversationId: string; answer: string }> {
+): Promise<{ conversationId: string; answer: string; sources: Source[] }> {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -103,12 +105,36 @@ export async function streamChat(
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let answer = ""
+  let meta: string | null = null // everything after the NUL sentinel
   for (;;) {
     const { value, done } = await reader.read()
     if (done) break
     const text = decoder.decode(value, { stream: true })
-    answer += text
-    onToken(text)
+    if (meta !== null) {
+      meta += text
+      continue
+    }
+    const idx = text.indexOf(SOURCES_SENTINEL)
+    if (idx === -1) {
+      answer += text
+      onToken(text)
+    } else {
+      const head = text.slice(0, idx)
+      if (head) {
+        answer += head
+        onToken(head)
+      }
+      meta = text.slice(idx + SOURCES_SENTINEL.length)
+    }
   }
-  return { conversationId, answer }
+
+  let sources: Source[] = []
+  if (meta) {
+    try {
+      sources = (JSON.parse(meta) as { sources?: Source[] }).sources ?? []
+    } catch {
+      /* malformed trailer — fall back to no live highlights */
+    }
+  }
+  return { conversationId, answer, sources }
 }

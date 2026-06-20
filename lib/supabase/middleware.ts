@@ -28,10 +28,14 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  // IMPORTANT: do not run code between createServerClient and getUser().
+  // IMPORTANT: do not run code between createServerClient and getClaims().
+  // getClaims() verifies the JWT locally when asymmetric signing keys are
+  // enabled (no auth-server round-trip on every request); it falls back to a
+  // network getUser() for legacy HS256 keys.
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: claimsData,
+  } = await supabase.auth.getClaims()
+  const user = claimsData?.claims ?? null
 
   const { pathname } = request.nextUrl
   const isProtected = pathname.startsWith("/dashboard")
