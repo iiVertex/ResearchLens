@@ -1,0 +1,11 @@
+import { createBrowserClient } from "@supabase/ssr"
+import type { Database } from "@/lib/supabase/types"
+
+// Browser-side Supabase client (uses the public anon key + RLS). Safe to use in
+// client components for auth and reading the signed-in user's own rows.
+export function createClient() {
+  return createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
+}
